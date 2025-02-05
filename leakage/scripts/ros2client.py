@@ -14,7 +14,7 @@ class LeakageDetectionClient(Node):
         self.bridge = CvBridge()
         self.image_subscription = self.create_subscription(
             ROSImage,
-            '/intel_realsense_r200_depth/image_raw',  # Topic publishing the image
+            '/summit/summit/front_rgbd_camera/color/image_raw',  # Topic publishing the image
             self.image_cb,
             10
         )

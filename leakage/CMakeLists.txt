@@ -27,6 +27,8 @@ endif()
 rosidl_generate_interfaces(${PROJECT_NAME}
 
   "srv/CheckImage.srv"
+  "srv/CheckPosture.srv"
+  "msg/PoseWithCompressedImage.msg"
   DEPENDENCIES sensor_msgs
 )
 

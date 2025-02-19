@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pose_image_pub = image_pose_pub.pose_image_pub:main',
+            'image_decompressor = image_pose_pub.image_decompressor:main',
         ],
     },
 )

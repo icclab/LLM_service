@@ -1,3 +1,3 @@
 geometry_msgs/PoseStamped pose
 
-sensor_msgs/CompressedImage image
+sensor_msgs/Image image

@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 
 from geometry_msgs.msg import PoseStamped
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image
 
 from leakage.msg import PoseWithCompressedImage
 
@@ -12,7 +12,7 @@ class ImagePosePublisher(Node):
 
         # Store the latest messages
         self.latest_pose = None
-        self.latest_compressed_image = None
+        self.latest_image = None
 
         self.pose_sub = self.create_subscription(
             PoseStamped,
@@ -21,8 +21,8 @@ class ImagePosePublisher(Node):
             10
         )
         self.image_sub = self.create_subscription(
-            CompressedImage,
-            '/zed/zed_node/rgb/image_rect_color/compressed',
+            Image,
+            '/image_raw',
             self.image_callback,
             10
         )
@@ -36,17 +36,17 @@ class ImagePosePublisher(Node):
         self.latest_pose = msg
 
     def image_callback(self, msg):
-        self.latest_compressed_image = msg
+        self.latest_image = msg
 
     def publish_data(self):
         # Only publish if we have both pose and image
-        if self.latest_pose is not None and self.latest_compressed_image is not None:
+        if self.latest_pose is not None and self.latest_image is not None:
             custom_msg = PoseWithCompressedImage()
             custom_msg.pose = self.latest_pose
-            custom_msg.image = self.latest_compressed_image
+            custom_msg.image = self.latest_image
 
             self.publisher_.publish(custom_msg)
-            self.get_logger().info('Publishing PoseWithCompressedImage message')
+            self.get_logger().info('Publishing PoseWithImage message')
 
 def main(args=None):
     rclpy.init(args=args)

@@ -1,10 +1,9 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image as ROSImage
-from geometry_msgs.msg import Pose
-from leakage.msg import PoseWithCompressedImage
+from geometry_msgs.msg import Pose, PoseStamped
+from ultralytics_ros.msg import YoloResult
 from std_msgs.msg import String
-from yolo_msgs.msg import DetectionArray
 from cv_bridge import CvBridge
 from leakage.srv import CheckPosture
 import time
@@ -25,48 +24,71 @@ class PostureDetectionClient(Node):
         self.request_in_progress = False  # Track the state of the service request
         self.pending_requests = {}  # Track pending requests: {future: (pose, timestamp)}
 
-        self.yolo_subscription = self.create_subscription(DetectionArray, '/yolo_result', self.yolo_cb, 10)
-        # self.image_subscription = self.create_subscription(ROSImage, '/intel_realsense_r200_depth/image_raw', self.image_cb, 10)
+        self.yolo_subscription = self.create_subscription(YoloResult, '/yolo_result', self.yolo_cb, 10)
 
         self.posture_pose_publisher = self.create_publisher(Pose, '/posture_pose', 10)
         self.posture_publisher = self.create_publisher(String, '/posture', 10)
 
-        self.image_subscription = self.create_subscription(
-            PoseWithCompressedImage,
-            'robot_image_pose',  # Topic publishing the image
-            self.pose_image_cb,
-            10
-        )
+        self.image_subscription = self.create_subscription(ROSImage, '/image_raw', self.image_cb, 10)
+        self.depth_subscription = self.create_subscription(ROSImage, '/zed/zed_node/depth/depth_registered', self.depth_cb, 10)
+        self.pose_subscription = self.create_subscription(PoseStamped, '/zed/zed_node/pose', self.pose_cb, 10)
 
-        # Publish decompressed image for YOLO
-        self.image_publisher = self.create_publisher(ROSImage, '/camera/rgb/image_raw', 10)
         
-        # Store the latest image for posture detection
+        # Store latest synchronized data
         self.latest_image = None
+        self.latest_depth = None
+        self.latest_pose = None
+
+    def image_cb(self, msg):
+        """
+        Callback for image topic. Updates the latest image when received.
+        """
+        self.latest_image = msg    
         
+    def depth_cb(self, msg):
+        """
+        Callback for depth image topic. Updates the latest depth image when received.
+        """
+        self.latest_depth = msg
+
+    def pose_cb(self, msg):
+        """
+        Callback for pose topic. Updates the latest pose when received.
+        """
+        self.latest_pose = msg.pose    
+    
     def yolo_cb(self, msg):
         """
         Callback for YOLO detections. Checks if a person is detected.
         """
-        if msg.detections.detections and len(msg.detections.detections) > 0 :
-            obj_class_name = msg.detections.detections[0].results[0].id
-        
-            if obj_class_name == "person":  # Check if detection is a person
-                if not self.person_detected:
-                    self.person_detected = True
-                    self.get_logger().info('Person detected! Capturing image...')
-                return  # Exit after detecting at least one person
+        if not msg.detections.detections:  # Ensure there are detections
+            # self.get_logger().info("No detections found")
+            return
+
+        for detection in msg.detections.detections:
+            if not detection.results:
+                continue  # Skip if no results in detection
+
+            object_id = detection.results[0].hypothesis.class_id
+            confidence = detection.results[0].hypothesis.score
+
+            # Check if the detected object is a person
+            if object_id == "person":
+                # self.get_logger().info(f"Person detected with confidence: {confidence}")
+                self.person_detected = True
+                self.process_posture()
+                return  # Exit after detecting the first person
 
         # If no person detected, reset flag
         self.person_detected = False
     
-    def pose_image_cb(self, msg):
+    def process_posture(self):
         """
-        Callback for image topic. Sends an image to check posture when a person is detected.
+        Check posture when a person is detected.
         """
-        if not self.person_detected:
-            return  # Skip processing if no person detected
-        
+        if self.latest_image is None or self.latest_pose is None:
+            return
+
         # Only proceed if no request is in progress
         if self.request_in_progress:
             #self.get_logger().info('Request in progress, skipping new image.')
@@ -74,17 +96,7 @@ class PostureDetectionClient(Node):
 
         self.get_logger().info('Sending image for posture check...')
 
-        pose = msg.pose.pose
-        compressed_image = msg.image
-
-        self.get_logger().info(
-            f'Received Pose: Position=({pose.position.x}, '
-            f'{pose.position.y}, {pose.position.z})'
-        )
-
-        # Decompress the image using OpenCV
-        np_arr = np.frombuffer(compressed_image.data, np.uint8)
-        cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgr8')
 
         # Record the time before sending the request
         request_time = time.time()
@@ -100,7 +112,7 @@ class PostureDetectionClient(Node):
         future = self.client.call_async(request)
 
         # Store the pose and timestamp associated with this request
-        self.pending_requests[future] = (pose, request_time)
+        self.pending_requests[future] = (self.latest_pose, request_time)
 
         # Add a callback to handle the response
         future.add_done_callback(self.handle_response)
@@ -119,6 +131,10 @@ class PostureDetectionClient(Node):
             self.get_logger().info(f'Time taken for service response: {response_time:.3f} seconds')
 
             response = future.result()
+            if response is None:
+                self.get_logger().error("No response received.")
+                return
+            
             # Check the posture_detected value and map it to a string
             if response.posture_detected == 0:
                 posture_string = "nothing found"
@@ -130,24 +146,23 @@ class PostureDetectionClient(Node):
                 posture_string = "lying"
             else:
                 posture_string = "unknown posture"  # Handle unexpected values
-
-            self.get_logger().info(f'Person posture detected: {posture_string}')
-
+            
             posture_msg = String()
             posture_msg.data = posture_string
             self.posture_publisher.publish(posture_msg)
 
-            if response.posture_detected:
+            if response.posture_detected !=0:
                 self.get_logger().info('Person posture detected!')
                 # Publish the robot pose to /posture_pose
                 self.posture_pose_publisher.publish(pose)
-                self.get_logger().info(
-                    f'Published posture pose: Position=({pose.position.x}, {pose.position.y}, {pose.position.z})'
+                self.get_logger().info(f'Person posture detected: {posture_string}, Published posture pose: Position=({pose.position.x}, {pose.position.y}, {pose.position.z})'
                 )
             else:
                 self.get_logger().info('No posture detected.')
         except Exception as e:
             self.get_logger().error(f'Service call failed: {str(e)}')
+
+        self.request_in_progress = False
 
 def main(args=None):
     rclpy.init(args=args)

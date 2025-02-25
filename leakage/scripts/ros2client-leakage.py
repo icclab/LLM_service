@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image as ROSImage
 from cv_bridge import CvBridge
-from leakage.srv import CheckImage
+from llm.srv import CheckImage
 
 class LeakageDetectionClient(Node):
     def __init__(self):

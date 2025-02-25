@@ -6,7 +6,7 @@ from geometry_msgs.msg import Pose, PoseStamped
 from ultralytics_ros.msg import YoloResult
 from std_msgs.msg import String
 from cv_bridge import CvBridge
-from leakage.srv import CheckPosture
+from llm.srv import CheckPosture
 import time
 import cv2
 import numpy as np

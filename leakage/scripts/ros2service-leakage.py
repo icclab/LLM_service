@@ -13,7 +13,7 @@ from cv_bridge import CvBridge
 import cv2
 from PIL import Image as PILImage
 
-from leakage.srv import CheckImage
+from llm.srv import CheckImage
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)

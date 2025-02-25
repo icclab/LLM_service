@@ -2,11 +2,11 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image as ROSImage
 from geometry_msgs.msg import Pose
-from leakage.msg import PoseWithCompressedImage
+from llm.msg import PoseWithCompressedImage
 from std_msgs.msg import String
 from yolo_msgs.msg import DetectionArray
 from cv_bridge import CvBridge
-from leakage.srv import CheckPosture
+from llm.srv import CheckPosture
 import time
 import cv2
 import numpy as np

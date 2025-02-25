@@ -5,7 +5,7 @@ from geometry_msgs.msg import Pose
 from std_msgs.msg import String
 from yolo_msgs.msg import DetectionArray
 from cv_bridge import CvBridge
-from leakage.srv import CheckPosture
+from llm.srv import CheckPosture
 import time
 import cv2
 import numpy as np

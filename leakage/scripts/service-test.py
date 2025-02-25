@@ -6,7 +6,7 @@ import cv2
 from PIL import Image as PILImage
 import random
 
-from leakage.srv import CheckPosture  # Custom ROS 2 service
+from llm.srv import CheckPosture  # Custom ROS 2 service
 
 class ImageSub(Node):
     def __init__(self):

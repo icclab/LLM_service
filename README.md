@@ -49,7 +49,7 @@ pip3 install sentencepiece
 python3 -m pip install -U scikit-image
 ```
 
-### 6. Build ROS2 Service and Move Script to LLM Folder
+### 6. Build ROS2 Service
 
 ```bash
 cd colcon_ws/src

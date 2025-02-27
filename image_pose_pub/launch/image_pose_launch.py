@@ -7,7 +7,10 @@ def generate_launch_description():
             package='image_pose_pub',  
             executable='image_decompressor',  
             name='image_decompressor',
-            output='screen'
+            output='screen',
+            parameters=[
+                {'compressed_image_topic': '/summit/oak/rgb/image_rect/compressed'},
+                {'raw_image_topic': '/image_raw'} ]
         ),
         
         Node(

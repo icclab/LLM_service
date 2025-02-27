@@ -9,19 +9,21 @@ class ImageDecompressor(Node):
     def __init__(self):
         super().__init__('image_decompressor')
 
-        # Create CvBridge for image conversion
+        # Declare parameters with default values
+        self.declare_parameter('compressed_image_topic', '/summit/oak/rgb/image_rect/compressed')
+        self.declare_parameter('raw_image_topic', '/image_raw')
+
+        # Get parameters from the launch file
+        compressed_image_topic = self.get_parameter('compressed_image_topic').get_parameter_value().string_value
+        raw_image_topic = self.get_parameter('raw_image_topic').get_parameter_value().string_value
+
         self.bridge = CvBridge()
 
         # Subscribe to the compressed image topic
-        self.subscription = self.create_subscription(
-            CompressedImage,
-            '/zed/zed_node/rgb/image_rect_color/compressed',
-            self.image_callback,
-            10
-        )
+        self.subscription = self.create_subscription(CompressedImage, compressed_image_topic, self.image_callback, 10)
 
         # Publisher for the decompressed raw image
-        self.publisher = self.create_publisher(Image, '/image_raw', 10)
+        self.publisher = self.create_publisher(Image, raw_image_topic, 10)
 
         self.get_logger().info('Image decompressor node started.')
 

@@ -89,9 +89,9 @@ ros2 launch image_pose_pub image_pose_launch.py
 # Terminal 3: 
 ros2 launch ultralytics_ros tracker.launch.xml debug:=true
 #Terminal 4: 
-python3 ~/colcon_ws/src/LLM_service/leakage/scripts/ros2service-posture.py
+ros2 launch llm posture_service_launch.py
 #Terminal 5: 
-python3 ~/colcon_ws/src/LLM_service/leakage/scripts/ros2client-posture-v4.py
+ros2 launch llm posture_client_launch.py
 ```
 
 ### Drone

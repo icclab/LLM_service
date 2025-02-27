@@ -4,7 +4,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 
-from leakage.msg import PoseWithCompressedImage
+from llm.msg import PoseWithCompressedImage
 
 class ImagePosePublisher(Node):
     def __init__(self):

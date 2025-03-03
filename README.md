@@ -85,12 +85,14 @@ Once all dependencies are installed and ROS2 services are built, you can start u
 # Terminal 1
 zenoh-bridge-ros2dds -c zenoh-config-drone.json5
 # Terminal 2: 
-ros2 launch image_pose_pub image_pose_launch.py
+ros2 launch image_pose_pub image_pose_launch.py compressed_image_topic:=/summit/summit/oak/rgb/image_raw/compressed raw_image_topic:=/summit/image_raw
 # Terminal 3: 
-ros2 launch ultralytics_ros tracker.launch.xml debug:=true
+ros2 launch ultralytics_ros tracker.launch.xml debug:=true input_topic:=/summit/image_raw
 #Terminal 4: 
-ros2 launch llm posture_service_launch.py
-#Terminal 5: 
+ros2 launch llm ros2_service_launch.py
+#Terminal 5 leakage detection: 
+ros2 launch llm leakage_client_launch.py
+#Terminal 6 posture detection: 
 ros2 launch llm posture_client_launch.py
 ```
 
@@ -101,6 +103,11 @@ ros2 launch llm posture_client_launch.py
 ros2 launch zed_wrapper zed_camera.launch.py 
 # Terminal 2:
 zenoh-bridge-ros2dds -c zenoh-config-drone.json5
-# Terminal 3: 
-python3 ~/ros2_ws/src/LLM_service/leakage/scripts/tf_transform_marker.py 
+```
+
+
+### Summit
+
+```bash
+ros2 launch llm tf_transform_summit_launch.py
 ```

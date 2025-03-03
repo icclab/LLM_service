@@ -30,6 +30,8 @@ install(PROGRAMS
   scripts/ros2client-posture-summit.py
   scripts/ros2service-posture.py
   scripts/tf_transform_marker.py
+  scripts/ros2service.py
+  scripts/ros2client-leakage.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

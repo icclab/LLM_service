@@ -13,16 +13,6 @@ def generate_launch_description():
                 {'raw_image_topic': '/summit/image_raw'} ]
         ),
         
-        Node(
-            package='image_pose_pub',  
-            executable='image_decompressor',  
-            name='image_decompressor_drone',
-            output='screen',
-            parameters=[
-                {'compressed_image_topic': '/drone/zed/zed_node/rgb/image_rect_color/compressed'},
-                {'raw_image_topic': '/drone/image_raw'} ]
-        ),
-        
         # Node(
         #     package='image_pose_pub',
         #     executable='pose_image_pub',

@@ -37,6 +37,9 @@ class ImageDecompressor(Node):
             # Convert OpenCV image to ROS Image message
             raw_image_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding='bgr8')
 
+            raw_image_msg.header.stamp = msg.header.stamp
+            raw_image_msg.header.frame_id = "zed_left_camera_optical_frame" 
+            
             # Publish the decompressed raw image
             self.publisher.publish(raw_image_msg)
 

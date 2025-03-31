@@ -10,12 +10,14 @@ class ImageDecompressor(Node):
         super().__init__('image_decompressor')
 
         # Declare parameters with default values
-        self.declare_parameter('compressed_image_topic', '/summit/oak/rgb/image_rect/compressed')
+        self.declare_parameter('compressed_image_topic', '/camera')
         self.declare_parameter('raw_image_topic', '/image_raw')
+        self.declare_parameter('frame_id', 'zed_left_camera_optical_frame')
 
         # Get parameters from the launch file
         compressed_image_topic = self.get_parameter('compressed_image_topic').get_parameter_value().string_value
         raw_image_topic = self.get_parameter('raw_image_topic').get_parameter_value().string_value
+        self.frame_id = self.get_parameter('frame_id').get_parameter_value().string_value
 
         self.bridge = CvBridge()
 
@@ -38,7 +40,7 @@ class ImageDecompressor(Node):
             raw_image_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding='bgr8')
 
             raw_image_msg.header.stamp = msg.header.stamp
-            raw_image_msg.header.frame_id = "zed_left_camera_optical_frame" 
+            raw_image_msg.header.frame_id = self.frame_id 
             
             # Publish the decompressed raw image
             self.publisher.publish(raw_image_msg)

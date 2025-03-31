@@ -23,6 +23,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/CheckImage.srv"
   "srv/CheckPosture.srv"
   "msg/PoseWithCompressedImage.msg"
+  "msg/PoseWithString.msg"
   DEPENDENCIES sensor_msgs
 )
 
@@ -32,6 +33,7 @@ install(PROGRAMS
   scripts/tf_transform_marker.py
   scripts/ros2service.py
   scripts/ros2client-leakage.py
+  scripts/ros2client-summit.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

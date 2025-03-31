@@ -10,7 +10,8 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'compressed_image_topic': '/summit/summit/oak/rgb/image_rect/compressed'},
-                {'raw_image_topic': '/summit/image_raw'} ]
+                {'raw_image_topic': '/summit/image_raw'},
+                {'frame_id': 'oak_rgb_frame'} ]
         ),
         
         Node(
@@ -20,7 +21,8 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'compressed_image_topic': '/drone/zed/zed_node/rgb/image_rect_color/compressed'},
-                {'raw_image_topic': '/drone/image_raw'} ]
+                {'raw_image_topic': '/drone/image_raw'},
+                {'frame_id': 'zed_left_camera_optical_frame'} ]
         ),
         
         # Node(

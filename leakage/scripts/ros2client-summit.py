@@ -9,6 +9,7 @@ from ultralytics_ros.msg import YoloResult
 from std_msgs.msg import String
 from cv_bridge import CvBridge
 from llm.srv import CheckPosture
+from llm.msg import PoseWithString
 import time
 import cv2
 import numpy as np
@@ -64,8 +65,9 @@ class PostureDetectionClient(Node):
 
         # Publishers
         self.posture_pose_publisher = self.create_publisher(Pose, '/posture_pose_summit', 10)
-        self.posture_publisher = self.create_publisher(String, '/posture', 10)
-        self.person_pose_pub = self.create_publisher(PoseStamped, '/person_pose_camera', 10)
+        # self.posture_publisher = self.create_publisher(String, '/posture', 10)
+        # self.person_pose_pub = self.create_publisher(PoseStamped, '/person_pose_camera', 10)
+        self.person_pose_pub = self.create_publisher(PoseWithString, '/person_pose_with_posture_camera', 10)
 
         # Latest data storage
         self.latest_image = None
@@ -105,7 +107,7 @@ class PostureDetectionClient(Node):
                 size_x, size_y = int(bbox.size_x), int(bbox.size_y)
 
                 if self.latest_depth is None:
-                    self.get_logger().warn("Depth image not available yet!")
+                    # self.get_logger().warn("Depth image not available yet!")
                     continue
 
                 # Extract depth using bounding box
@@ -114,22 +116,33 @@ class PostureDetectionClient(Node):
                 if avg_depth is not None:
                     person_position = self.pixel_to_3d(center_x, center_y, avg_depth)
                     if person_position is not None:
-                        
-                        personpose = PoseStamped()
-                        personpose.header.stamp = self.get_clock().now().to_msg()
-                        personpose.header.frame_id = 'oak_rgb_camera_optical_frame'
-                        personpose.pose.position.x = person_position[0]
-                        personpose.pose.position.y = person_position[1]
-                        personpose.pose.position.z = person_position[2]
-                        self.get_logger().info(f"Person Position (Camera Frame): {personpose}")
+                        self.send_posture_request(person_position)
+                #         personpose = PoseStamped()
+                #         personpose.header.stamp = self.get_clock().now().to_msg()
+                #         personpose.header.frame_id = 'oak_rgb_camera_optical_frame'
+                #         personpose.pose.position.x = person_position[0]
+                #         personpose.pose.position.y = person_position[1]
+                #         personpose.pose.position.z = person_position[2]
+                #         self.get_logger().info(f"Person Position (Camera Frame): {personpose}")
 
-                        self.person_pose_pub.publish(personpose)
+                #         self.person_pose_pub.publish(personpose)
 
-                self.person_detected = True
-                self.process_posture()
-                return  
+                # self.person_detected = True
+                # self.process_posture()
+                # return  
 
-        self.person_detected = False
+        # self.person_detected = False
+    def send_posture_request(self, person_position):
+        if self.latest_image is None or self.request_in_progress:
+            return
+
+        request = CheckPosture.Request()
+        request.image = self.bridge.cv2_to_imgmsg(self.bridge.imgmsg_to_cv2(self.latest_image, 'bgr8'), 'bgr8')
+
+        self.request_in_progress = True
+        future = self.client.call_async(request)
+        future.add_done_callback(lambda f: self.handle_response(f, person_position))
+
 
     def estimate_depth(self, center_x, center_y, size_x, size_y):
         """ Estimates average depth of person using bounding box pixels. """
@@ -158,36 +171,48 @@ class PostureDetectionClient(Node):
         ray = np.array(self.camera_model.projectPixelTo3dRay((x, y)))
         return ray * (depth / ray[2])
 
-    def process_posture(self):
-        """ Sends image for posture analysis. """
-        if self.latest_image is None or self.latest_pose is None or self.request_in_progress:
-            return
+    # def process_posture(self):
+    #     """ Sends image for posture analysis. """
+    #     if self.latest_image is None or self.latest_pose is None or self.request_in_progress:
+    #         return
 
-        self.get_logger().info('Checking posture...')
+    #     self.get_logger().info('Checking posture...')
 
-        request = CheckPosture.Request()
-        request.image = self.bridge.cv2_to_imgmsg(self.bridge.imgmsg_to_cv2(self.latest_image, 'bgr8'), 'bgr8')
+    #     request = CheckPosture.Request()
+    #     request.image = self.bridge.cv2_to_imgmsg(self.bridge.imgmsg_to_cv2(self.latest_image, 'bgr8'), 'bgr8')
 
-        self.request_in_progress = True
-        future = self.client.call_async(request)
-        self.pending_requests[future] = self.latest_pose
+    #     self.request_in_progress = True
+    #     future = self.client.call_async(request)
+    #     self.pending_requests[future] = self.latest_pose
 
-        future.add_done_callback(self.handle_response)
+    #     future.add_done_callback(self.handle_response)
 
-    def handle_response(self, future):
+    def handle_response(self, future, person_position):
         """ Handles the response from posture service. """
         try:
-            pose = self.pending_requests.pop(future, None)
-            if pose is None:
-                return
+            # pose = self.pending_requests.pop(future, None)
+            # if pose is None:
+            #     return
 
             response = future.result()
             posture_string = {0: "nothing found", 1: "standing", 2: "sitting", 3: "lying"}.get(response.posture_detected, "unknown posture")
 
-            self.posture_publisher.publish(String(data=posture_string))
-            if response.posture_detected:
-                self.posture_pose_publisher.publish(pose)
-                #self.get_logger().info(f"Posture: {posture_string} at Position: {pose.position}")
+            pose_with_string = PoseWithString()
+            pose_with_string.posture = posture_string
+            pose_with_string.pose.header.stamp = self.get_clock().now().to_msg()
+            pose_with_string.pose.header.frame_id = 'oak_rgb_camera_optical_frame'
+            pose_with_string.pose.position.x = person_position[0]
+            pose_with_string.pose.position.y = person_position[1]
+            pose_with_string.pose.position.z = person_position[2]
+
+            self.person_pose_pub.publish(pose_with_string)
+            self.get_logger().info(f"Posture Detected: {posture_string} at {person_position}")
+
+
+            # self.posture_publisher.publish(String(data=posture_string))
+            # if response.posture_detected:
+            #     self.posture_pose_publisher.publish(pose)
+            #     #self.get_logger().info(f"Posture: {posture_string} at Position: {pose.position}")
 
         except Exception as e:
             self.get_logger().error(f"Posture Service Error: {str(e)}")

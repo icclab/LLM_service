@@ -41,6 +41,7 @@ class LeakageDetection(Node):
         self.leakage_gps_pub = self.create_publisher(Point, '/leakage_gps', 10)
         self.leakage_local_pub = self.create_publisher(Point, '/leakage_local', 10)
         self.marker_pub = self.create_publisher(Marker, '/leakage_marker', 10)
+        self.annotated_image_pub = self.create_publisher(ROSImage, '/leakage_annotated_image', 10)
         
         self.latest_gps = None
         self.latest_local = None 
@@ -49,17 +50,24 @@ class LeakageDetection(Node):
             api_key=os.environ["ROBOFLOW_API_KEY"],
         )
 
-    def synchronized_callback(self, ros_image: ROSImage, local_pos_msg: PoseStamped, gps_msg: NavSatFix):
+    def synchronized_callback(self, ros_image: ROSImage, gps_msg: NavSatFix, local_pos_msg: PoseStamped):
         self.get_logger().info('Image and Pose received, running inference...')
 
         cv_image = self.bridge.imgmsg_to_cv2(ros_image, desired_encoding='bgr8')
         self.latest_local = local_pos_msg
         self.latest_gps = gps_msg
 
-        results = self.model_client.infer(cv_image, model_id="puddle-detection/8")
-        detections = sv.Detections.from_inference(results)
+        results1 = self.model_client.infer(cv_image, model_id="water-leakage/2")
+        results2 = self.model_client.infer(cv_image, model_id="water-ba8zz/1")
 
-        if detections:
+        # Process results from both models
+        detections1 = sv.Detections.from_inference(results1)
+        detections2 = sv.Detections.from_inference(results2)
+
+        # Combine detections from both models
+        combined_results = results1["predictions"] + results2["predictions"]
+
+        if combined_results:
             self.get_logger().info('Leakage detected! Publishing last known position...')
             
             if self.latest_local:
@@ -71,8 +79,34 @@ class LeakageDetection(Node):
                 self.leakage_gps_pub.publish(leakage_gps_msg)
 
             self.publish_leakage_marker(self.latest_local.pose.position)
+
+            # Annotate image with bounding boxes and labels
+            annotated_image = self.annotate_image(cv_image, detections1, detections2)
+            self.publish_annotated_image(annotated_image, ros_image.header)
+
         else:
             self.get_logger().info('No leakage detected.')
+
+    def annotate_image(self, image, prediction1, prediction2):
+        """ Annotate image with bounding boxes and class labels """
+        bounding_box_annotator = sv.BoxAnnotator()
+        label_annotator = sv.LabelAnnotator()
+
+        # Draw bounding boxes and labels
+        annotated_image = bounding_box_annotator.annotate(scene=image, detections=prediction1)
+        annotated_image = label_annotator.annotate(scene=annotated_image, detections=prediction1)
+        annotated_image = bounding_box_annotator.annotate(scene=image, detections=prediction2)
+        annotated_image = label_annotator.annotate(scene=annotated_image, detections=prediction2)
+        # sv.plot_image(annotated_image)
+
+        return annotated_image
+
+    def publish_annotated_image(self, annotated_image, header):
+        """ Publish annotated image as a ROS message """
+        annotated_ros_image = self.bridge.cv2_to_imgmsg(annotated_image, encoding="bgr8")
+        annotated_ros_image.header = header
+        self.annotated_image_pub.publish(annotated_ros_image)
+        self.get_logger().info("Published annotated image.")
 
     def publish_leakage_marker(self, position):
         marker = Marker()

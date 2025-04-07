@@ -4,13 +4,13 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         Node(
-            package='liquid_detection',  
-            executable='roboflow',  
-            name='roboflow_water',
+            package='posture_detection',  
+            executable='posture',  
+            name='posture_detection_client',
             output='screen',
             parameters=[
                 {'image_topic': '/summit/oak/rgb/image_rect'},
-                {'gps_topic': '/summit/gps/fix'},
+                {'marker_topic': '/visualization_marker'},
                 {'local_topic': '/summit/base_pose'},]
         ),
     ])

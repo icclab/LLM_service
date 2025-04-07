@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'posture = posture_detection.posture_client:main',
+            'server = posture_detection.posture_server:main',
         ],
     },
 )

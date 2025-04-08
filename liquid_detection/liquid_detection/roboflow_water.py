@@ -47,7 +47,7 @@ class LeakageDetection(Node):
         # self.latest_gps = None
         self.latest_local = None 
         self.model_client = InferenceHTTPClient(
-            api_url="http://160.85.253.140:30334",
+            api_url="https://roboflow.nephele-project.ch",
             api_key="wrJRdyQTYXns1D8MwoxW",
         )
 

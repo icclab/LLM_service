@@ -25,7 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             'roboflow = liquid_detection.roboflow_water:main',
-
+            'water = liquid_detection.water:main',
+            'pixel_water = liquid_detection.roboflow:main',
         ],
     },
 )

@@ -24,35 +24,23 @@ class LeakageDetection(Node):
         
         # Declare parameters with default values
         self.declare_parameter('image_topic', '/summit/color/image')
-        self.declare_parameter('depth_topic', '/summit/stereo/depth')
         self.declare_parameter('camera_info_topic', '/summit/color/camera_info')
 
         image_topic = self.get_parameter('image_topic').get_parameter_value().string_value
-        depth_topic = self.get_parameter('depth_topic').get_parameter_value().string_value
         camera_info_topic = self.get_parameter('camera_info_topic').get_parameter_value().string_value
 
         self.bridge = CvBridge()
         
-        self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=5.0))
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-
         self.camera_model = PinholeCameraModel()
 
         qos_profile = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE, depth=10)
 
         self.camera_info_sub = self.create_subscription(CameraInfo, camera_info_topic, self.camera_info_callback, 10)
-
-        self.image_subscription = Subscriber(self, ROSImage, image_topic, qos_profile=qos_profile)
-        self.depth_subscription = Subscriber(self, ROSImage, depth_topic, qos_profile=qos_profile)
-
-        self.sync = ApproximateTimeSynchronizer([self.image_subscription, self.depth_subscription], queue_size=10, slop=0.1)
-        self.sync.registerCallback(self.synchronized_callback)
+        self.image_subscription = self.create_subscription(ROSImage, image_topic, self.image_callback, 10)
         
-        self.marker_pub = self.create_publisher(Marker, '/leakage_marker', 10)
         self.point_pub = self.create_publisher(PointStamped, '/leakage_pixel_coords', 10)
         self.annotated_image_pub = self.create_publisher(ROSImage, '/leakage_annotated_image', 10)
         
-        self.depth_img = None
         self.model_client = InferenceHTTPClient(
             api_url="https://roboflow.nephele-project.ch",
             api_key="wrJRdyQTYXns1D8MwoxW",
@@ -70,12 +58,10 @@ class LeakageDetection(Node):
         self.camera_model.fromCameraInfo(camera_info_msg)
 
 
-    def synchronized_callback(self, ros_image: ROSImage, depth_image: ROSImage):
-    # def synchronized_callback(self, ros_image: ROSImage, local_pos_msg: PoseStamped):
+    def image_callback(self, ros_image):
         self.get_logger().info('Image and depth received, running inference...')
 
         cv_image = self.bridge.imgmsg_to_cv2(ros_image, desired_encoding='bgr8')
-        self.depth_img = self.bridge.imgmsg_to_cv2(depth_image)
 
         detections = []
 
@@ -95,44 +81,13 @@ class LeakageDetection(Node):
                 x1, y1, x2, y2 = bbx
                 center_x = int((x1 + x2) / 2)
                 center_y = int((y1 + y2) / 2)
-
-                if self.depth_img is not None:
-                    try:
-                        depth_value = self.depth_img[center_y, center_x] * 0.001
-                        if depth_value <= 0 or np.isnan(depth_value):
-                            self.get_logger().warn(f"Invalid depth at pixel ({center_x}, {center_y})")
-                            continue
-
-                        ray = self.camera_model.projectPixelTo3dRay((center_x, center_y))
-                        ray = np.array(ray)
-                        point_3d = ray * (depth_value / ray[2])
-
-                        self.get_logger().info(f"Detection center at pixel ({center_x}, {center_y}) => 3D point: {point_3d}")
-
-                        # Transform the 3D point to the map frame
-                        target_frame = 'map'
-                        source_frame = 'oak_rgb_camera_optical_frame'
-
-                        leakage_msg = PointStamped()
-                        leakage_msg.header.frame_id = source_frame
-                        leakage_msg.header.stamp = self.get_clock().now().to_msg()
-                        leakage_msg.point.x = point_3d[0]
-                        leakage_msg.point.y = -point_3d[1]
-                        leakage_msg.point.z = point_3d[2]
-
-                        self.point_pub.publish(leakage_msg)
-                        
-                        transform = self.tf_buffer.lookup_transform(target_frame, source_frame, rclpy.time.Time().to_msg(), timeout=rclpy.duration.Duration(seconds=5.0))
-                        transformed_point = do_transform_point(leakage_msg, transform)
-
-                        # self.publish_leakage_marker(transformed_point.point)
-
-                    except Exception as e:
-                        self.get_logger().error(f"Error processing 3D point: {e}")
-                        continue
-                else:
-                    self.get_logger().warn("No depth image received yet.")
-
+                
+                pixel_coords = PointStamped()
+                pixel_coords.header = ros_image.header
+                pixel_coords.point.x = center_x
+                pixel_coords.point.y = center_y
+                pixel_coords.point.z = 0.0
+                self.point_pub.publish(pixel_coords)
 
         # Annotate image with bounding boxes and labels
         annotated_image = self.annotate_image(cv_image, actual_detections)
@@ -162,31 +117,6 @@ class LeakageDetection(Node):
         annotated_ros_image.header = header
         self.annotated_image_pub.publish(annotated_ros_image)
         self.get_logger().info("Published annotated image.")
-
-    def publish_leakage_marker(self, position):
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.ns = "leakage"
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-
-        marker.pose.position.x = position.x
-        marker.pose.position.y = position.y
-        marker.pose.position.z = position.z
-
-        marker.scale.x = 0.2
-        marker.scale.y = 0.2
-        marker.scale.z = 0.2
-
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0
-
-        self.marker_pub.publish(marker)
-        self.get_logger().info("Published leakage marker.")
 
 
 def main(args=None):

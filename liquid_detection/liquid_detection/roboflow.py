@@ -31,8 +31,6 @@ class LeakageDetection(Node):
 
         self.bridge = CvBridge()
         
-        self.camera_model = PinholeCameraModel()
-
         qos_profile = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE, depth=10)
 
         self.camera_info_sub = self.create_subscription(CameraInfo, camera_info_topic, self.camera_info_callback, 10)
@@ -48,20 +46,28 @@ class LeakageDetection(Node):
 
         self.models = [
             ("water-leakage/2", sv.Color(255, 0, 0)),  # Red
-            # ("persons-muimi/8", sv.Color(255, 0, 0)),  # Red
             # ("water-ba8zz/1", sv.Color(0, 255, 0)),  # Green
             # ("spills-ax5xv/2", sv.Color(0, 0, 255))  # Blue
         ]
 
-    def camera_info_callback(self, camera_info_msg):
-        """ Initialize camera model from CameraInfo. """
-        self.camera_model.fromCameraInfo(camera_info_msg)
+        self.original_width = 0
+        self.original_height = 0
 
+    def camera_info_callback(self, msg):
+        """ Initialize camera model from CameraInfo. """
+        self.original_width = msg.width
+        self.original_height = msg.height
 
     def image_callback(self, ros_image):
-        self.get_logger().info('Image and depth received, running inference...')
 
         cv_image = self.bridge.imgmsg_to_cv2(ros_image, desired_encoding='bgr8')
+        # Dimensions of the image used for inference
+        inference_width = cv_image.shape[1]  # 416
+        inference_height = cv_image.shape[0]  # 416
+
+        # Compute scale factors
+        scale_x = self.original_width / inference_width
+        scale_y = self.original_height / inference_height
 
         detections = []
 
@@ -74,18 +80,19 @@ class LeakageDetection(Node):
             self.get_logger().warning("No detections found! Skipping annotation.")
             return
 
-        self.get_logger().info('Leakage detected! Publishing last known position...')
-
         for detection in actual_detections:
             for bbx in detection[0][0].xyxy:
                 x1, y1, x2, y2 = bbx
                 center_x = int((x1 + x2) / 2)
                 center_y = int((y1 + y2) / 2)
+                # Scale the coordinates
+                scaled_x = center_x * scale_x
+                scaled_y = center_y * scale_y
                 
                 pixel_coords = PointStamped()
                 pixel_coords.header = ros_image.header
-                pixel_coords.point.x = center_x
-                pixel_coords.point.y = center_y
+                pixel_coords.point.x = float(scaled_x)
+                pixel_coords.point.y = float(scaled_y)
                 pixel_coords.point.z = 0.0
                 self.point_pub.publish(pixel_coords)
 

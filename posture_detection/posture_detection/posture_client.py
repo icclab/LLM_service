@@ -97,7 +97,7 @@ class PostureDetectionClient(Node):
             marker.type = Marker.SPHERE
             marker.action = Marker.ADD
             marker.pose = person_position
-            marker.scale.x = marker.scale.y = marker.scale.z = 0.4
+            marker.scale.x = marker.scale.y = marker.scale.z = 0.2
             marker.color.a = 1.0
 
             if posture_code == 1:  # standing - green

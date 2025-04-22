@@ -19,8 +19,8 @@ class PostureDetectionClient(Node):
         super().__init__('posture_detection_client')
         
         # Declare parameters with default values
-        self.declare_parameter('image_topic', '/summit/oak/rgb/image_rect')
-        self.declare_parameter('marker_topic', '/visualization_marker')
+        self.declare_parameter('image_topic', '/summit/summit/color/image')
+        self.declare_parameter('marker_topic', '/summit/summit/person_marker')
 
         # Get parameters from the launch file
         image_topic = self.get_parameter('image_topic').get_parameter_value().string_value
@@ -108,10 +108,10 @@ class PostureDetectionClient(Node):
                 marker.color.r = 1.0
                 marker.color.g = 1.0
                 marker.color.b = 0.0
-            elif posture_code == 3:  # lying - red
+            elif posture_code == 3:  # lying - pink
                 marker.color.r = 1.0
                 marker.color.g = 0.0
-                marker.color.b = 0.0
+                marker.color.b = 1.0
 
             self.marker_pub.publish(marker)
 

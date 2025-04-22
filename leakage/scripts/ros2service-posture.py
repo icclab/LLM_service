@@ -128,7 +128,7 @@ class ImageSub(Node):
 
         # Ask the model about the posture
         # question = '<image>\nPlease check the image properly, if there is any posture, find it and tell me in the percentage of the pixels of the image, if no, just simply answer NO without anything extra..'
-        question = '<image>\nPlease describe the image, if there is a person, alert me by answering YES, there is a person!! And tell me if he or she is standing or sitting or lying down'
+        question = '<image>\nPlease check the person in the image and tell me if he or she is standing or sitting or lying down, only choose from these three options, if no posture is detected, just simply answer NO without anything extra..'
         response = self.model.chat(self.tokenizer, pixel_values, question, self.generation_config)
 
         self.get_logger().info(f'User: {question}\nAssistant: {response}')

@@ -9,8 +9,8 @@ def generate_launch_description():
             name='posture_detection_client',
             output='screen',
             parameters=[
-                {'image_topic': '/summit/oak/rgb/image_rect'},
-                {'marker_topic': '/visualization_marker'},
-                {'local_topic': '/summit/base_pose'},]
+                {'image_topic': '/summit/summit/color/image'},
+                {'marker_topic': '/summit/summit/person_marker'},
+                ]
         ),
     ])

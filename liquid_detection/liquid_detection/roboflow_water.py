@@ -184,6 +184,8 @@ class LeakageDetection(Node):
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker.color.a = 1.0
+        
+        marker.lifetime = rclpy.duration.Duration(seconds= 10.0 * 60.0)
 
         self.marker_pub.publish(marker)
         self.get_logger().info("Published leakage marker.")

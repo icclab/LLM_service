@@ -17,6 +17,7 @@ import numpy as np
 from tf2_ros import Buffer, TransformListener
 from image_geometry import PinholeCameraModel
 from tf2_geometry_msgs import do_transform_point
+from builtin_interfaces.msg import Duration
 
 class LeakageDetection(Node):
     def __init__(self):
@@ -185,7 +186,7 @@ class LeakageDetection(Node):
         marker.color.b = 0.0
         marker.color.a = 1.0
         
-        marker.lifetime = rclpy.duration.Duration(seconds= 10.0 * 60.0)
+        marker.lifetime = Duration(sec=10*60, nanosec=0)
 
         self.marker_pub.publish(marker)
         self.get_logger().info("Published leakage marker.")

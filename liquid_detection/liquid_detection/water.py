@@ -22,6 +22,8 @@ import tf2_geometry_msgs # Import needed for do_transform_vector3
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import image_geometry
 import numpy as np
+from builtin_interfaces.msg import Duration as builtin_Duration
+
 # Optional, but useful for robust vector rotation if not using tf2_geometry_msgs helper
 # from scipy.spatial.transform import Rotation as R
 
@@ -233,6 +235,8 @@ class PixelToGroundNode(Node):
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker.color.a = 1.0
+
+        marker.lifetime = builtin_Duration(sec=10*60, nanosec=0)
 
         self.marker_pub.publish(marker)
         self.get_logger().info("Published leakage marker.")
